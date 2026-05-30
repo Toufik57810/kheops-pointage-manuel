@@ -689,13 +689,14 @@ select.input-field option { background: var(--bg3); }
       <!-- RELEVE DYNAMIQUE -->
       <div class="page" id="page-releve">
         <div class="page-header">
-          <div><h2>✅ Relevé dynamique</h2><p>Contrôle des postes — vérification agents & changements</p></div>
+          <div><h2>📋 Feuille de Relevé</h2><p>Contrôle des postes — cases à cocher + vérification changements</p></div>
           <div class="page-actions">
             <div class="month-nav">
               <button onclick="changeMonth(-1)">◀</button>
               <span class="month-label" id="releve-month-label">MAI 2026</span>
               <button onclick="changeMonth(1)">▶</button>
             </div>
+            <button class="btn btn-blue btn-sm" onclick="openAddNotif()">➕ Poste suppl.</button>
             <button class="btn btn-green btn-sm" onclick="saveReleve()">💾 Sauvegarder</button>
           </div>
         </div>
@@ -720,22 +721,48 @@ select.input-field option { background: var(--bg3); }
             </select>
           </div>
         </div>
-        <div class="card" style="overflow:hidden">
-          <div style="overflow-x:auto">
-            <div class="releve-row header">
-              <span>DATE</span><span>SITE</span><span>AGENT PRÉVU</span>
-              <span>ARR. RÉELLE</span><span>DÉP. RÉELLE</span>
-              <span>STATUT</span><span>REMPLAÇANT</span><span>ACTIONS</span>
-            </div>
-            <div id="releve-content"><div class="loading"><div class="spinner"></div> Chargement...</div></div>
-          </div>
+        <!-- TABLEAU STYLE EXCEL — deux panneaux côte à côte -->
+        <div style="overflow-x:auto;border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,0.4)">
+          <table id="releve-table" style="width:100%;border-collapse:collapse;min-width:1100px;font-size:12px">
+            <thead>
+              <tr>
+                <!-- EN-TÊTE GAUCHE = PLANNING PRÉVU -->
+                <td colspan="7" style="background:#1a1a2e;padding:8px 16px;font-weight:700;font-size:13px;color:#fff;text-align:center;border-bottom:2px solid #f59e0b;border-right:3px solid #f59e0b">
+                  📋 FEUILLE DE RELEVÉ — <span id="releve-mois-titre">MAI 2026</span>
+                </td>
+                <!-- EN-TÊTE DROITE = FEUILLE DE POINTAGE -->
+                <td colspan="6" style="background:#1a1a2e;padding:8px 16px;font-weight:700;font-size:13px;color:#fff;text-align:center;border-bottom:2px solid #3b82f6">
+                  📋 FEUILLE DE POINTAGE
+                </td>
+              </tr>
+              <tr style="background:#1f2937">
+                <th style="padding:8px 8px;color:#fbbf24;font-size:10px;font-weight:700;border:1px solid #374151;text-align:center">NOM</th>
+                <th style="padding:8px 8px;color:#fbbf24;font-size:10px;font-weight:700;border:1px solid #374151;text-align:center">DATE</th>
+                <th style="padding:8px 8px;color:#fbbf24;font-size:10px;font-weight:700;border:1px solid #374151;text-align:center">ORGANISME</th>
+                <th style="padding:8px 8px;color:#fbbf24;font-size:10px;font-weight:700;border:1px solid #374151;text-align:center">SITE</th>
+                <th style="padding:8px 8px;color:#fbbf24;font-size:10px;font-weight:700;border:1px solid #374151;text-align:center">DÉBUT</th>
+                <th style="padding:8px 8px;color:#fbbf24;font-size:10px;font-weight:700;border:1px solid #374151;text-align:center">FIN</th>
+                <th style="padding:8px 8px;color:#fbbf24;font-size:10px;font-weight:700;border:1px solid #374151;text-align:center;border-right:3px solid #f59e0b">VALID.</th>
+                <!-- DROITE -->
+                <th style="padding:8px 8px;color:#93c5fd;font-size:10px;font-weight:700;border:1px solid #374151;text-align:center">NOM</th>
+                <th style="padding:8px 8px;color:#93c5fd;font-size:10px;font-weight:700;border:1px solid #374151;text-align:center">DATE</th>
+                <th style="padding:8px 8px;color:#93c5fd;font-size:10px;font-weight:700;border:1px solid #374151;text-align:center">ORGANISME</th>
+                <th style="padding:8px 8px;color:#93c5fd;font-size:10px;font-weight:700;border:1px solid #374151;text-align:center">SITE</th>
+                <th style="padding:8px 8px;color:#93c5fd;font-size:10px;font-weight:700;border:1px solid #374151;text-align:center">ARR.</th>
+                <th style="padding:8px 8px;color:#93c5fd;font-size:10px;font-weight:700;border:1px solid #374151;text-align:center">DÉP.</th>
+              </tr>
+            </thead>
+            <tbody id="releve-content">
+              <tr><td colspan="13" style="text-align:center;padding:30px;color:#64748b"><div class="spinner" style="margin:0 auto 8px"></div>Chargement...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
       <!-- NOTIFICATIONS -->
       <div class="page" id="page-notifications">
         <div class="page-header">
-          <div><h2>🔔 Feuille Notifications</h2><p>À envoyer au collègue après contrôle des postes</p></div>
+          <div><h2>🔔 Notifications Remplaçants & Anomalies</h2><p>Seules les lignes avec événement sont affichées — triées par date</p></div>
           <div class="page-actions">
             <div class="month-nav">
               <button onclick="changeMonth(-1)">◀</button>
@@ -763,15 +790,37 @@ select.input-field option { background: var(--bg3); }
             </select>
           </div>
         </div>
-        <div class="card" style="overflow:hidden">
-          <div style="overflow-x:auto">
-            <div class="notif-row header" style="font-size:10px">
-              <span>DATE</span><span>SITE</span><span>POSTE</span><span>CRÉNEAU</span>
-              <span>AGENT PRÉVU</span><span>STATUT</span><span>REMPLAÇANT</span>
-              <span>MOTIF</span><span>ARR.</span><span>DÉP.</span>
-            </div>
-            <div id="notifications-content"><div class="loading"><div class="spinner"></div> Chargement...</div></div>
-          </div>
+        <!-- TABLEAU STYLE EXCEL -->
+        <div style="overflow-x:auto;border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,0.4)">
+          <table id="notif-table" style="width:100%;border-collapse:collapse;min-width:900px;font-size:12px">
+            <thead>
+              <tr style="background:#1a3a6e">
+                <td colspan="10" style="padding:10px 16px;text-align:center;font-weight:700;font-size:14px;color:#fff;letter-spacing:1px;border-bottom:2px solid #2d5aa0">
+                  🔔 &nbsp; NOTIFICATIONS REMPLAÇANTS &amp; ANOMALIES — ARELIA
+                </td>
+              </tr>
+              <tr style="background:#1a3a6e">
+                <td colspan="10" style="padding:5px 16px;text-align:center;font-size:11px;color:#93c5fd;font-style:italic;border-bottom:2px solid #e67e22">
+                  ⚡ Compacté automatiquement — seules les lignes avec événement (R/N/retard/motif) sont affichées, triées par date
+                </td>
+              </tr>
+              <tr style="background:#1a3a6e">
+                <th style="padding:8px 10px;color:#fff;font-weight:700;font-size:11px;letter-spacing:0.5px;border:1px solid #2d5aa0;text-align:center">DATE</th>
+                <th style="padding:8px 10px;color:#fff;font-weight:700;font-size:11px;letter-spacing:0.5px;border:1px solid #2d5aa0;text-align:center">SITE</th>
+                <th style="padding:8px 10px;color:#fff;font-weight:700;font-size:11px;letter-spacing:0.5px;border:1px solid #2d5aa0;text-align:center">POSTE</th>
+                <th style="padding:8px 10px;color:#fff;font-weight:700;font-size:11px;letter-spacing:0.5px;border:1px solid #2d5aa0;text-align:center">CRÉNEAU</th>
+                <th style="padding:8px 10px;color:#fff;font-weight:700;font-size:11px;letter-spacing:0.5px;border:1px solid #2d5aa0;text-align:center">⏳ AGENT PRÉVU</th>
+                <th style="padding:8px 10px;color:#fff;font-weight:700;font-size:11px;letter-spacing:0.5px;border:1px solid #2d5aa0;text-align:center">STATUT</th>
+                <th style="padding:8px 10px;color:#fff;font-weight:700;font-size:11px;letter-spacing:0.5px;border:1px solid #2d5aa0;text-align:center">REMPLAÇANT</th>
+                <th style="padding:8px 10px;color:#fff;font-weight:700;font-size:11px;letter-spacing:0.5px;border:1px solid #2d5aa0;text-align:center;min-width:200px">MOTIF</th>
+                <th style="padding:8px 10px;color:#fff;font-weight:700;font-size:11px;letter-spacing:0.5px;border:1px solid #2d5aa0;text-align:center">ARR. RÉELLE</th>
+                <th style="padding:8px 10px;color:#fff;font-weight:700;font-size:11px;letter-spacing:0.5px;border:1px solid #2d5aa0;text-align:center">DÉP. RÉEL</th>
+              </tr>
+            </thead>
+            <tbody id="notifications-content">
+              <tr><td colspan="10" style="text-align:center;padding:30px;color:#64748b"><div class="spinner" style="margin:0 auto 8px"></div>Chargement...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -1476,12 +1525,16 @@ function renderPlanning() {
 }
 
 // ══════════════════════════════════════════
-// RELEVÉ DYNAMIQUE
+// RELEVÉ — Style Excel deux panneaux
 // ══════════════════════════════════════════
 function renderReleve() {
   const siteF = document.getElementById('rel-site-filter').value;
   const dateF = document.getElementById('rel-date-filter').value;
   const statF = document.getElementById('rel-status-filter').value;
+
+  // Update month title
+  const moisEl = document.getElementById('releve-mois-titre');
+  if (moisEl) moisEl.textContent = `${MOIS_FR[currentMonth].toUpperCase()} ${currentYear}`;
 
   let data = notifData;
   if (siteF) data = data.filter(d => d.site === siteF);
@@ -1492,42 +1545,79 @@ function renderReleve() {
 
   if (data.length === 0) {
     document.getElementById('releve-content').innerHTML =
-      `<div class="empty-state"><div class="empty-icon">✅</div><h3>Aucun relevé</h3><p>Importez le planning ou ajoutez des notifications</p></div>`;
+      `<tr><td colspan="13" style="text-align:center;padding:40px;color:#64748b">
+        <div style="font-size:32px;margin-bottom:8px">📋</div>
+        <div style="font-weight:600;color:#94a3b8;margin-bottom:4px">Aucun relevé ce mois</div>
+        <div style="font-size:12px">Importez le planning ou ajoutez des entrées</div>
+      </td></tr>`;
     return;
   }
 
-  const rows = data.map(r => {
-    const hasChange = r.remplacant && r.remplacant !== '—';
-    const hasMiss = r.statut === 'Absent';
-    let statusBadge = `<span class="badge badge-green">✓ OK</span>`;
-    if (hasChange) statusBadge = `<span class="badge badge-orange">🔄 Changement</span>`;
-    if (hasMiss) statusBadge = `<span class="badge badge-red">❌ Absent</span>`;
-
-    // Checkbox
+  const rows = data.map((r, i) => {
     const isChecked = r.statut === '✓ Validé';
-    const cbCls = isChecked ? 'checked' : (hasChange ? 'changed-check' : '');
-    const cbSymbol = isChecked ? '✓' : (hasChange ? '≠' : '');
+    const hasChange = r.remplacant && r.remplacant !== '—' && r.remplacant !== '';
+    const hasMiss = r.statut === 'Absent';
+    const isOdd = i % 2 === 0;
 
-    return `<div class="releve-row">
-      <span style="font-size:11px;color:var(--text2)">${formatDate(r.date)}</span>
-      <span><span class="badge badge-blue" style="font-size:10px">${r.site}</span></span>
-      <span style="font-weight:500">${r.agent_prevu || '—'}</span>
-      <span style="font-family:'DM Mono',monospace;font-size:12px">${r.arr_reelle || '—'}</span>
-      <span style="font-family:'DM Mono',monospace;font-size:12px">${r.dep_reelle || '—'}</span>
-      <span>${statusBadge}</span>
-      <span style="color:${hasChange?'var(--orange)':'var(--text3)'}">${r.remplacant || '—'}</span>
-      <span style="display:flex;gap:4px">
-        <button class="btn btn-ghost btn-sm" onclick="editNotif(${r.id})" title="Modifier">✏️</button>
-        <button class="btn btn-ghost btn-sm" onclick="deleteNotif(${r.id})" title="Supprimer">🗑️</button>
-      </span>
-    </div>`;
+    // Fond selon statut
+    let bgLeft = isOdd ? '#0d1b2e' : '#0a1628';
+    let bgRight = isOdd ? '#0d1b2e' : '#0a1628';
+    if (hasMiss) { bgLeft = 'rgba(239,68,68,0.08)'; bgRight = 'rgba(239,68,68,0.08)'; }
+    else if (hasChange) { bgRight = 'rgba(245,158,11,0.1)'; }
+
+    // Checkbox style
+    const cbBg = isChecked ? '#16a34a' : (hasChange ? '#d97706' : 'transparent');
+    const cbBorder = isChecked ? '#16a34a' : (hasChange ? '#d97706' : '#374151');
+    const cbText = isChecked ? '✓' : (hasChange ? '≠' : '');
+    const cbColor = (isChecked || hasChange) ? '#fff' : 'transparent';
+
+    // Nom à droite = remplaçant si changement, sinon même agent
+    const nomDroit = hasChange ? `<span style="color:#fb923c;font-weight:700">${r.remplacant}</span>` : `<span style="color:#f1f5f9">${r.agent_prevu||'—'}</span>`;
+
+    return `<tr style="border-bottom:1px solid #1e293b" 
+      onmouseover="this.querySelectorAll('td').forEach(t=>t.style.background='rgba(59,130,246,0.08)')"
+      onmouseout="this.querySelectorAll('td').forEach((t,i)=>t.style.background=i<7?'${bgLeft}':'${bgRight}')">
+      <!-- GAUCHE : planning prévu -->
+      <td style="padding:7px 8px;background:${bgLeft};border:1px solid #1e293b;font-weight:600;font-size:11px;color:#f1f5f9;white-space:nowrap">${r.agent_prevu||'—'}</td>
+      <td style="padding:7px 8px;background:${bgLeft};border:1px solid #1e293b;font-family:'DM Mono',monospace;font-size:10px;color:#e2a800;white-space:nowrap">${formatDateFR(r.date)}</td>
+      <td style="padding:7px 8px;background:${bgLeft};border:1px solid #1e293b;font-size:10px;color:#60a5fa;text-align:center">ARELIA</td>
+      <td style="padding:7px 8px;background:${bgLeft};border:1px solid #1e293b;font-weight:700;font-size:11px;color:#60a5fa;text-align:center">${r.site||'—'}</td>
+      <td style="padding:7px 8px;background:${bgLeft};border:1px solid #1e293b;font-family:'DM Mono',monospace;font-size:11px;color:#94a3b8;text-align:center">${r.arr_reelle||r.creneau?.split('→')[0]?.trim()||'—'}</td>
+      <td style="padding:7px 8px;background:${bgLeft};border:1px solid #1e293b;font-family:'DM Mono',monospace;font-size:11px;color:#94a3b8;text-align:center">${r.dep_reelle||r.creneau?.split('→')[1]?.trim()||'—'}</td>
+      <!-- CASE À COCHER -->
+      <td style="padding:7px 8px;background:${bgLeft};border:1px solid #1e293b;border-right:3px solid #f59e0b;text-align:center">
+        <div onclick="toggleValidation(${r.id})" style="width:18px;height:18px;border:2px solid ${cbBorder};border-radius:3px;background:${cbBg};display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:${cbColor};font-size:12px;font-weight:700;transition:all 0.15s">${cbText}</div>
+      </td>
+      <!-- DROITE : pointage réel -->
+      <td style="padding:7px 8px;background:${bgRight};border:1px solid #1e293b;font-size:11px">${nomDroit}</td>
+      <td style="padding:7px 8px;background:${bgRight};border:1px solid #1e293b;font-family:'DM Mono',monospace;font-size:10px;color:#e2a800;white-space:nowrap">${formatDateFR(r.date)}</td>
+      <td style="padding:7px 8px;background:${bgRight};border:1px solid #1e293b;font-size:10px;color:#60a5fa;text-align:center">ARELIA</td>
+      <td style="padding:7px 8px;background:${bgRight};border:1px solid #1e293b;font-weight:700;font-size:11px;color:#60a5fa;text-align:center">${r.site||'—'}</td>
+      <td style="padding:7px 8px;background:${bgRight};border:1px solid #1e293b;font-family:'DM Mono',monospace;font-size:11px;color:#94a3b8;text-align:center">${r.arr_reelle||'—'}</td>
+      <td style="padding:7px 8px;background:${bgRight};border:1px solid #1e293b;font-family:'DM Mono',monospace;font-size:11px;color:#94a3b8;text-align:center;position:relative">
+        ${r.dep_reelle||'—'}
+        <span style="margin-left:4px;font-size:10px;color:${hasChange?'#fb923c':'#475569'}">${hasChange?'AUTO':''}</span>
+        &nbsp;<button onclick="editNotif(${r.id})" style="background:none;border:none;cursor:pointer;font-size:11px;opacity:0.4;padding:0" title="Modifier">✏️</button>
+      </td>
+    </tr>`;
   }).join('');
 
   document.getElementById('releve-content').innerHTML = rows;
 }
 
+async function toggleValidation(id) {
+  const item = notifData.find(x => x.id === id);
+  if (!item) return;
+  const newStatut = item.statut === '✓ Validé' ? 'En attente' : '✓ Validé';
+  try {
+    await sb('notifications_releve', 'PATCH', { statut: newStatut }, `?id=eq.${id}`);
+    item.statut = newStatut;
+    renderReleve();
+  } catch(e) { showToast('Erreur sauvegarde', 'error'); }
+}
+
 // ══════════════════════════════════════════
-// NOTIFICATIONS
+// NOTIFICATIONS — Style Excel fidèle
 // ══════════════════════════════════════════
 function renderNotifications() {
   const siteF = document.getElementById('notif-site-filter').value;
@@ -1539,28 +1629,73 @@ function renderNotifications() {
 
   if (data.length === 0) {
     document.getElementById('notifications-content').innerHTML =
-      `<div class="empty-state"><div class="empty-icon">🔔</div><h3>Aucune notification</h3><p>Les notifications s'affichent ici après contrôle des postes</p></div>`;
+      `<tr><td colspan="10" style="text-align:center;padding:40px;color:#64748b">
+        <div style="font-size:32px;margin-bottom:8px">🔔</div>
+        <div style="font-weight:600;color:#94a3b8;margin-bottom:4px">Aucune notification ce mois</div>
+        <div style="font-size:12px">Les notifications apparaissent après contrôle des postes</div>
+      </td></tr>`;
     return;
   }
 
-  const rows = data.map(n => {
-    const hasChange = n.remplacant && n.remplacant !== '—';
-    const statCls = hasChange ? 'badge-orange' : (n.statut === '✓ Validé' ? 'badge-green' : 'badge-red');
-    return `<div class="notif-row">
-      <span style="font-size:11px;color:var(--text2)">${formatDate(n.date)}</span>
-      <span><span class="badge badge-blue" style="font-size:10px">${n.site}</span></span>
-      <span style="font-size:11px">${n.poste||'—'}</span>
-      <span style="font-family:'DM Mono',monospace;font-size:11px">${n.creneau||'—'}</span>
-      <span style="font-weight:500;font-size:12px">${n.agent_prevu||'—'}</span>
-      <span><span class="badge ${statCls}" style="font-size:10px">${n.statut||'—'}</span></span>
-      <span style="color:${hasChange?'var(--orange)':'var(--text3)'}; font-size:12px">${n.remplacant||'—'}</span>
-      <span style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.motif||'—'}</span>
-      <span style="font-family:'DM Mono',monospace;font-size:11px">${n.arr_reelle||'—'}</span>
-      <span style="font-family:'DM Mono',monospace;font-size:11px">${n.dep_reelle||'—'}</span>
-    </div>`;
+  const rows = data.map((n, i) => {
+    const hasChange = n.remplacant && n.remplacant !== '—' && n.remplacant !== '';
+    const hasMotif = n.motif && n.motif !== '—' && n.motif !== '';
+    const isOdd = i % 2 === 0;
+
+    // Couleur de fond selon statut (fidèle Excel)
+    let bgColor = isOdd ? '#0d1b2e' : '#0a1628';
+    if (hasMotif) bgColor = 'rgba(180,100,0,0.15)'; // fond orangé si motif (comme Excel)
+    if (hasChange && !hasMotif) bgColor = 'rgba(59,130,246,0.08)';
+
+    // Statut couleur
+    const statColor = n.statut === '✓ Validé' ? '#22c55e' : (n.statut === 'Absent' ? '#ef4444' : '#f59e0b');
+
+    // Motif couleur orange si renseigné (comme Excel)
+    const motifStyle = hasMotif
+      ? 'color:#f97316;font-weight:600;font-style:italic'
+      : 'color:#475569';
+
+    return `<tr style="background:${bgColor};border-bottom:1px solid #1e3a5f" class="notif-excel-row" onmouseover="this.style.background='rgba(59,130,246,0.12)'" onmouseout="this.style.background='${bgColor}'">
+      <td style="padding:7px 10px;text-align:center;font-family:'DM Mono',monospace;font-size:11px;color:#e2a800;font-weight:600;border-right:1px solid #1e3a5f;white-space:nowrap">${formatDateFR(n.date)}</td>
+      <td style="padding:7px 10px;text-align:center;font-weight:700;font-size:11px;color:#60a5fa;border-right:1px solid #1e3a5f;white-space:nowrap">${n.site||'—'}</td>
+      <td style="padding:7px 10px;text-align:center;font-weight:600;font-size:11px;color:#c084fc;border-right:1px solid #1e3a5f">${n.poste||'—'}</td>
+      <td style="padding:7px 10px;text-align:center;font-family:'DM Mono',monospace;font-size:11px;color:#94a3b8;border-right:1px solid #1e3a5f;white-space:nowrap">${n.creneau||'—'}</td>
+      <td style="padding:7px 12px;font-weight:700;font-size:12px;color:#f1f5f9;border-right:1px solid #1e3a5f;white-space:nowrap">${n.agent_prevu||'—'}</td>
+      <td style="padding:7px 10px;text-align:center;font-weight:600;font-size:11px;color:${statColor};border-right:1px solid #1e3a5f;white-space:nowrap">${n.statut||'—'}</td>
+      <td style="padding:7px 10px;text-align:center;font-size:11px;color:${hasChange?'#fb923c':'#475569'};font-weight:${hasChange?'700':'400'};border-right:1px solid #1e3a5f;white-space:nowrap">${n.remplacant||'—'}</td>
+      <td style="padding:7px 12px;font-size:11px;${motifStyle};border-right:1px solid #1e3a5f">${n.motif||'—'}</td>
+      <td style="padding:7px 10px;text-align:center;font-family:'DM Mono',monospace;font-size:11px;color:#94a3b8;border-right:1px solid #1e3a5f">${n.arr_reelle||'—'}</td>
+      <td style="padding:7px 10px;text-align:center;font-family:'DM Mono',monospace;font-size:11px;color:#94a3b8;position:relative">
+        ${n.dep_reelle||'—'}
+        <span style="margin-left:8px;opacity:0" class="notif-actions">
+          <button onclick="editNotif(${n.id})" style="background:none;border:none;cursor:pointer;font-size:13px" title="Modifier">✏️</button>
+          <button onclick="deleteNotif(${n.id})" style="background:none;border:none;cursor:pointer;font-size:13px" title="Supprimer">🗑️</button>
+        </span>
+      </td>
+    </tr>`;
   }).join('');
 
   document.getElementById('notifications-content').innerHTML = rows;
+
+  // Show action buttons on row hover
+  document.querySelectorAll('.notif-excel-row').forEach(row => {
+    row.addEventListener('mouseenter', () => {
+      const actions = row.querySelector('.notif-actions');
+      if (actions) actions.style.opacity = '1';
+    });
+    row.addEventListener('mouseleave', () => {
+      const actions = row.querySelector('.notif-actions');
+      if (actions) actions.style.opacity = '0';
+    });
+  });
+}
+
+function formatDateFR(d) {
+  if (!d) return '—';
+  try {
+    const date = new Date(d);
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch { return d; }
 }
 
 // ══════════════════════════════════════════
