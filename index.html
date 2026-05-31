@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planning Arélia — Importateur</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3350;
+    --green: #22c55e;
+    --green-dim: #166534;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --accent: #3b82f6;
+    --accent-dim: #1e3a5f;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+
+  /* ── HEADER ── */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 16px; font-weight: 600; color: var(--green); }
+  header span { font-size: 12px; color: var(--text2); }
+
+  /* ── IMPORT ZONE ── */
+  #import-zone { padding: 24px; }
+  .upload-box { border: 2px dashed var(--border); border-radius: var(--radius-lg); padding: 32px; text-align: center; cursor: pointer; transition: border-color .2s; background: var(--surface); }
+  .upload-box:hover { border-color: var(--accent); }
+  .upload-box input { display: none; }
+  .upload-box label { cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .upload-icon { font-size: 32px; opacity: .5; }
+  .upload-box p { color: var(--text2); font-size: 13px; }
+  .upload-box .hint { font-size: 11px; color: var(--text2); margin-top: 4px; opacity: .6; }
+
+  .checkbox-row { margin-top: 14px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); }
+  .checkbox-row input { accent-color: var(--green); }
+
+  /* ── STATS ── */
+  #stats { display: none; padding: 0 24px 16px; gap: 12px; flex-wrap: wrap; }
+  #stats.show { display: flex; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 20px; min-width: 120px; }
+  .stat-card .val { font-size: 28px; font-weight: 700; color: var(--green); }
+  .stat-card .lbl { font-size: 11px; color: var(--text2); margin-top: 2px; text-transform: uppercase; letter-spacing: .05em; }
+
+  /* ── MAIN 3-COL LAYOUT ── */
+  #main { display: none; gap: 0; height: calc(100vh - 200px); }
+  #main.show { display: flex; }
+
+  /* Left: planning table */
+  #col-left { flex: 1; border-right: 1px solid var(--border); display: flex; flex-direction: column; min-width: 0; }
+  /* Center: validation */
+  #col-mid { width: 220px; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  /* Right: validated */
+  #col-right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  .col-header { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 10px 14px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text2); display: flex; align-items: center; justify-content: space-between; }
+  .col-header .count { background: var(--accent-dim); color: var(--accent); border-radius: 20px; padding: 1px 8px; font-size: 11px; }
+  .col-header .count.green { background: var(--green-dim); color: var(--green); }
+
+  .col-body { flex: 1; overflow-y: auto; }
+  .col-body::-webkit-scrollbar { width: 4px; } 
+  .col-body::-webkit-scrollbar-track { background: transparent; }
+  .col-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* Planning row */
+  .plan-row { display: grid; grid-template-columns: 24px 90px 1fr 90px 100px; gap: 6px; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--border); transition: background .15s; cursor: pointer; }
+  .plan-row:hover { background: var(--surface2); }
+  .plan-row.validated { opacity: .4; pointer-events: none; }
+  .plan-row input[type=checkbox] { accent-color: var(--green); width: 14px; height: 14px; cursor: pointer; }
+  .plan-row .date { color: var(--text2); font-size: 12px; white-space: nowrap; }
+  .plan-row .agent { font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .plan-row .poste { color: var(--accent); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .plan-row .horaire { font-size: 11px; color: var(--text2); white-space: nowrap; }
+  .plan-row .src { font-size: 10px; background: var(--accent-dim); color: var(--accent); border-radius: 4px; padding: 1px 5px; text-align: center; }
+  .plan-row .src.arelia { background: var(--green-dim); color: var(--green); }
+  .plan-row .src.evenom { background: #3b1e6e; color: #a78bfa; }
+
+  /* Filter bar */
+  .filter-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .filter-bar input, .filter-bar select { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); padding: 5px 8px; font-size: 12px; outline: none; }
+  .filter-bar input:focus, .filter-bar select:focus { border-color: var(--accent); }
+  .filter-bar input { flex: 1; min-width: 120px; }
+
+  /* Center validation panel */
+  #col-mid .col-body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; }
+  .validate-info { text-align: center; }
+  .validate-info p { font-size: 11px; color: var(--text2); line-height: 1.5; }
+  .validate-info .sel-count { font-size: 28px; font-weight: 700; color: var(--green); display: block; }
+  .btn-validate { background: var(--green); color: #000; border: none; border-radius: var(--radius); padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer; width: 100%; transition: opacity .2s; }
+  .btn-validate:hover { opacity: .85; }
+  .btn-validate:disabled { opacity: .3; cursor: not-allowed; }
+  .btn-unvalidate { background: transparent; color: var(--red); border: 1px solid var(--red); border-radius: var(--radius); padding: 8px 14px; font-size: 12px; cursor: pointer; width: 100%; margin-top: 6px; transition: background .15s; }
+  .btn-unvalidate:hover { background: #3f0e0e; }
+  .btn-export { background: var(--accent); color: #fff; border: none; border-radius: var(--radius); padding: 10px 14px; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 16px; transition: opacity .2s; }
+  .btn-export:hover { opacity: .85; }
+
+  .divider { width: 100%; height: 1px; background: var(--border); margin: 8px 0; }
+
+  /* Validated row */
+  .valid-row { display: grid; grid-template-columns: 90px 1fr 90px 100px 20px; gap: 6px; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--border); transition: background .15s; }
+  .valid-row:hover { background: var(--surface2); }
+  .valid-row .date { color: var(--text2); font-size: 12px; }
+  .valid-row .agent { font-weight: 500; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .valid-row .poste { color: var(--green); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .valid-row .horaire { font-size: 11px; color: var(--text2); }
+  .valid-row .rm { cursor: pointer; color: var(--text2); font-size: 16px; text-align: center; transition: color .15s; background: none; border: none; }
+  .valid-row .rm:hover { color: var(--red); }
+
+  /* Preview box */
+  #preview-box { display: none; margin: 0 24px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; font-size: 12px; }
+  #preview-box.show { display: block; }
+  #preview-box h3 { color: var(--green); font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+  #preview-list { color: var(--text2); line-height: 1.8; }
+  #preview-more { color: var(--yellow); font-size: 11px; }
+
+  /* Toast */
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--green); color: #000; padding: 10px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 99; }
+  #toast.show { opacity: 1; }
+
+  /* Empty state */
+  .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 8px; color: var(--text2); font-size: 12px; opacity: .5; }
+
+  /* Select-all row */
+  .select-all-row { padding: 6px 12px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); }
+  .select-all-row input { accent-color: var(--green); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🗓 Planning Arélia</h1>
+    <span>Importateur &amp; validateur de planning</span>
+  </div>
+  <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+    <span id="status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--border);display:inline-block;"></span>
+    <span id="status-txt" style="font-size:12px;color:var(--text2);">Aucun fichier chargé</span>
+  </div>
+</header>
+
+<!-- IMPORT -->
+<div id="import-zone">
+  <div class="upload-box" id="drop-zone">
+    <label for="file-input">
+      <div class="upload-icon">📂</div>
+      <strong>Glisser-déposer un fichier Excel (.xlsx)</strong>
+      <p>ou cliquer pour parcourir</p>
+      <p class="hint">Colonnes attendues : Agent, Date, Poste, Heure début, Heure fin, Source</p>
+    </label>
+    <input type="file" id="file-input" accept=".xlsx,.xls">
+  </div>
+  <div class="checkbox-row">
+    <input type="checkbox" id="mac1904" />
+    <label for="mac1904">Fichier Mac Excel (date1904) — si dates décalées de 4 ans</label>
+  </div>
+</div>
+
+<!-- STATS -->
+<div id="stats">
+  <div class="stat-card"><div class="val" id="s-total">0</div><div class="lbl">Total lignes</div></div>
+  <div class="stat-card"><div class="val" id="s-arelia">0</div><div class="lbl">Arélia</div></div>
+  <div class="stat-card"><div class="val" id="s-evenom">0</div><div class="lbl">Évén.</div></div>
+  <div class="stat-card"><div class="val" id="s-validated">0</div><div class="lbl">Validées</div></div>
+</div>
+
+<!-- PREVIEW -->
+<div id="preview-box">
+  <h3>APERÇU (8 premières lignes)</h3>
+  <div id="preview-list"></div>
+  <div id="preview-more"></div>
+</div>
+
+<!-- 3-COL MAIN -->
+<div id="main">
+  <!-- LEFT: planning -->
+  <div id="col-left">
+    <div class="col-header">
+      Planning
+      <span class="count" id="cnt-left">0</span>
+    </div>
+    <div class="filter-bar">
+      <input type="text" id="filter-agent" placeholder="🔍 Filtrer agent..." />
+      <select id="filter-date">
+        <option value="">Toutes les dates</option>
+      </select>
+      <select id="filter-src">
+        <option value="">Toutes sources</option>
+        <option value="arelia">Arélia</option>
+        <option value="evenom">Évén.</option>
+      </select>
+    </div>
+    <div class="select-all-row">
+      <input type="checkbox" id="select-all" />
+      <label for="select-all">Tout sélectionner (visible)</label>
+    </div>
+    <div class="col-body" id="list-left"></div>
+  </div>
+
+  <!-- CENTER: validation -->
+  <div id="col-mid">
+    <div class="col-header" style="justify-content:center;">Validation</div>
+    <div class="col-body">
+      <div class="validate-info">
+        <span class="sel-count" id="sel-count">0</span>
+        <p>ligne(s) sélectionnée(s)</p>
+      </div>
+      <div class="divider"></div>
+      <button class="btn-validate" id="btn-validate" onclick="validateSelected()" disabled>
+        ✓ Valider
+      </button>
+      <button class="btn-unvalidate" onclick="unvalidateAll()">
+        ✗ Tout retirer
+      </button>
+      <div class="divider"></div>
+      <button class="btn-export" onclick="exportExcel()">
+        ⬇ Exporter .xlsx
+      </button>
+    </div>
+  </div>
+
+  <!-- RIGHT: validated -->
+  <div id="col-right">
+    <div class="col-header">
+      Validées
+      <span class="count green" id="cnt-right">0</span>
+    </div>
+    <div class="col-body" id="list-right"></div>
+  </div>
+</div>
+
+<div id="toast">✓ Exporté avec succès !</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────
+let allRows = [];        // { agent, date (Date obj), poste, debut, fin, src, id }
+let validated = new Set(); // ids
+
+// ── UTILS ──────────────────────────────────────────────────────────────
+// FIX UTC: utilise getUTC* pour éviter le décalage de fuseau horaire
+function excelDateToDateUTC(serial, is1904) {
+  const base = is1904 ? 24107 : 25569; // différence entre epoch Excel et JS
+  const ms = (serial - base) * 86400 * 1000;
+  return new Date(ms); // on garde UTC, on affiche avec getUTC*
+}
+
+function formatDateUTC(d) {
+  if (!d) return '';
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatDateFR(d) {
+  if (!d) return '';
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  return `${day}/${m}`;
+}
+
+function excelTimeToStr(val) {
+  if (val == null || val === '') return '';
+  if (typeof val === 'string') return val;
+  const totalMin = Math.round(val * 24 * 60);
+  const h = Math.floor(totalMin / 60) % 24;
+  const min = totalMin % 60;
+  return `${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}`;
+}
+
+// ── FILE READING ───────────────────────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', e => handleFile(e.target.files[0]));
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor='var(--accent)'; });
+dz.addEventListener('dragleave', () => { dz.style.borderColor='var(--border)'; });
+dz.addEventListener('drop', e => { e.preventDefault(); dz.style.borderColor='var(--border)'; handleFile(e.dataTransfer.files[0]); });
+
+function handleFile(file) {
+  if (!file) return;
+  const is1904 = document.getElementById('mac1904').checked;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      // cellDates:false → on gère nous-mêmes pour éviter le bug UTC
+      const wb = XLSX.read(ev.target.result, { type: 'binary', cellDates: false });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+
+      if (raw.length < 2) { alert('Fichier vide ou sans données'); return; }
+
+      // Détecter en-têtes (ligne 0)
+      const hdr = raw[0].map(h => String(h || '').trim().toLowerCase());
+
+      // Mappings flexibles
+      const idxOf = (...keys) => {
+        for (const k of keys) {
+          const i = hdr.findIndex(h => h.includes(k));
+          if (i >= 0) return i;
+        }
+        return -1;
+      };
+      const iAgent = idxOf('agent', 'nom', 'prénom', 'name');
+      const iDate  = idxOf('date');
+      const iPoste = idxOf('poste', 'service', 'lieu', 'site');
+      const iDeb   = idxOf('début', 'debut', 'start', 'heure dé', 'h deb');
+      const iFin   = idxOf('fin', 'end', 'heure fi', 'h fin');
+      const iSrc   = idxOf('source', 'src', 'type');
+
+      allRows = [];
+      let id = 0;
+
+      for (let r = 1; r < raw.length; r++) {
+        const row = raw[r];
+        if (!row || row.every(c => c === '' || c == null)) continue;
+
+        // Date: FIX UTC
+        let dateObj = null;
+        if (iDate >= 0 && row[iDate] !== '') {
+          const v = row[iDate];
+          if (typeof v === 'number') {
+            dateObj = excelDateToDateUTC(v, is1904);
+          } else if (typeof v === 'string') {
+            // Essayer de parser ISO ou DD/MM/YYYY
+            const parts = v.split(/[\/\-\.]/);
+            if (parts.length === 3) {
+              const [a, b, c] = parts;
+              // DD/MM/YYYY
+              if (a.length <= 2) dateObj = new Date(Date.UTC(+c, +b - 1, +a));
+              // YYYY-MM-DD
+              else dateObj = new Date(Date.UTC(+a, +b - 1, +c));
+            }
+          }
+        }
+
+        allRows.push({
+          id: id++,
+          agent: iAgent >= 0 ? String(row[iAgent] || '').trim() : `Ligne ${r}`,
+          date:  dateObj,
+          dateStr: dateObj ? formatDateUTC(dateObj) : '',
+          poste: iPoste >= 0 ? String(row[iPoste] || '').trim() : '',
+          debut: iDeb >= 0 ? excelTimeToStr(row[iDeb]) : '',
+          fin:   iFin >= 0 ? excelTimeToStr(row[iFin]) : '',
+          src:   iSrc >= 0 ? String(row[iSrc] || '').trim().toLowerCase() : 'arelia',
+          rawRow: row
+        });
+      }
+
+      validated = new Set();
+      initUI();
+    } catch(e) {
+      console.error(e);
+      alert('Erreur lecture fichier: ' + e.message);
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+// ── INIT UI ─────────────────────────────────────────────────────────────
+function initUI() {
+  document.getElementById('import-zone').style.display = 'none';
+  document.getElementById('stats').classList.add('show');
+  document.getElementById('preview-box').classList.add('show');
+  document.getElementById('main').classList.add('show');
+
+  document.getElementById('status-dot').style.background = 'var(--green)';
+  document.getElementById('status-txt').textContent = `${allRows.length} lignes chargées`;
+
+  // Stats
+  const nArelia = allRows.filter(r => r.src.includes('arelia') || r.src === '').length;
+  const nEvenom = allRows.filter(r => r.src.includes('ev') || r.src.includes('éven') || r.src === 'evenom').length;
+  document.getElementById('s-total').textContent = allRows.length;
+  document.getElementById('s-arelia').textContent = nArelia;
+  document.getElementById('s-evenom').textContent = nEvenom;
+
+  // Preview
+  const prev = allRows.slice(0, 8);
+  document.getElementById('preview-list').innerHTML = prev.map(r =>
+    `<div style="color:var(--green)">✓ ${r.agent} · ${r.dateStr} · ${r.poste} · ${r.debut}→${r.fin} (${r.src})</div>`
+  ).join('');
+  const more = allRows.length - 8;
+  document.getElementById('preview-more').textContent = more > 0 ? `… et ${more} autres` : '';
+
+  // Date filter options
+  const dates = [...new Set(allRows.map(r => r.dateStr))].sort();
+  const sel = document.getElementById('filter-date');
+  sel.innerHTML = '<option value="">Toutes les dates</option>' +
+    dates.map(d => `<option value="${d}">${d}</option>`).join('');
+
+  renderLeft();
+  renderRight();
+}
+
+// ── FILTER & RENDER LEFT ─────────────────────────────────────────────────
+function getFiltered() {
+  const fa = document.getElementById('filter-agent').value.toLowerCase();
+  const fd = document.getElementById('filter-date').value;
+  const fs = document.getElementById('filter-src').value;
+  return allRows.filter(r => {
+    if (validated.has(r.id)) return false;
+    if (fa && !r.agent.toLowerCase().includes(fa)) return false;
+    if (fd && r.dateStr !== fd) return false;
+    if (fs) {
+      const inArelia = r.src.includes('arelia') || r.src === '';
+      const inEvenom = r.src.includes('ev') || r.src.includes('éven');
+      if (fs === 'arelia' && !inArelia) return false;
+      if (fs === 'evenom' && !inEvenom) return false;
+    }
+    return true;
+  });
+}
+
+let selected = new Set();
+
+function renderLeft() {
+  const rows = getFiltered();
+  const el = document.getElementById('list-left');
+  document.getElementById('cnt-left').textContent = rows.length;
+
+  if (!rows.length) {
+    el.innerHTML = '<div class="empty"><div>📭</div>Aucune ligne à afficher</div>';
+    updateSelCount();
+    return;
+  }
+
+  el.innerHTML = rows.map(r => {
+    const srcCls = r.src.includes('arelia') || r.src === '' ? 'arelia' : r.src.includes('ev') ? 'evenom' : '';
+    const srcLabel = srcCls === 'arelia' ? 'arélia' : srcCls === 'evenom' ? 'évén.' : r.src;
+    const checked = selected.has(r.id) ? 'checked' : '';
+    return `<div class="plan-row" onclick="toggleRow(${r.id}, event)">
+      <input type="checkbox" ${checked} data-id="${r.id}" onclick="toggleRow(${r.id}, event)" />
+      <span class="date">${formatDateFR(r.date)}</span>
+      <span class="agent">${r.agent}</span>
+      <span class="poste">${r.poste}</span>
+      <span class="horaire">${r.debut}→${r.fin}</span>
+    </div>`;
+  }).join('');
+
+  updateSelCount();
+}
+
+function toggleRow(id, e) {
+  if (e.target.tagName === 'INPUT') {
+    // clic direct sur checkbox
+    if (e.target.checked) selected.add(id);
+    else selected.delete(id);
+  } else {
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    // sync checkbox
+    const cb = document.querySelector(`input[data-id="${id}"]`);
+    if (cb) cb.checked = selected.has(id);
+  }
+  updateSelCount();
+}
+
+function updateSelCount() {
+  const n = [...selected].filter(id => !validated.has(id)).length;
+  document.getElementById('sel-count').textContent = n;
+  document.getElementById('btn-validate').disabled = n === 0;
+  document.getElementById('s-validated').textContent = validated.size;
+  document.getElementById('cnt-right').textContent = validated.size;
+}
+
+// Select all visible
+document.getElementById('select-all').addEventListener('change', function() {
+  const rows = getFiltered();
+  rows.forEach(r => {
+    if (this.checked) selected.add(r.id);
+    else selected.delete(r.id);
+  });
+  renderLeft();
+});
+
+// Filters
+['filter-agent','filter-date','filter-src'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    document.getElementById('select-all').checked = false;
+    renderLeft();
+  });
+});
+
+// ── VALIDATION ──────────────────────────────────────────────────────────
+function validateSelected() {
+  const toValidate = [...selected].filter(id => !validated.has(id));
+  toValidate.forEach(id => { validated.add(id); selected.delete(id); });
+  renderLeft();
+  renderRight();
+  updateSelCount();
+}
+
+function unvalidateAll() {
+  validated.clear();
+  selected.clear();
+  renderLeft();
+  renderRight();
+  updateSelCount();
+}
+
+function renderRight() {
+  const validatedRows = allRows.filter(r => validated.has(r.id));
+  const el = document.getElementById('list-right');
+  document.getElementById('cnt-right').textContent = validatedRows.length;
+  document.getElementById('s-validated').textContent = validatedRows.length;
+
+  if (!validatedRows.length) {
+    el.innerHTML = '<div class="empty"><div>✅</div>Aucune ligne validée</div>';
+    return;
+  }
+
+  el.innerHTML = validatedRows.map(r =>
+    `<div class="valid-row">
+      <span class="date">${formatDateFR(r.date)}</span>
+      <span class="agent">${r.agent}</span>
+      <span class="poste">${r.poste}</span>
+      <span class="horaire">${r.debut}→${r.fin}</span>
+      <button class="rm" onclick="removeValidated(${r.id})" title="Retirer">×</button>
+    </div>`
+  ).join('');
+}
+
+function removeValidated(id) {
+  validated.delete(id);
+  renderLeft();
+  renderRight();
+  updateSelCount();
+}
+
+// ── EXPORT XLSX DYNAMIQUE ───────────────────────────────────────────────
+function exportExcel() {
+  const validatedRows = allRows.filter(r => validated.has(r.id));
+  if (!validatedRows.length) { alert('Aucune ligne validée à exporter !'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // Données principales
+  const data = [
+    ['Agent', 'Date', 'Poste', 'Heure début', 'Heure fin', 'Source']
+  ];
+
+  validatedRows.forEach(r => {
+    // FIX UTC: on construit la date à partir de getUTC* pour ne pas avoir de décalage
+    let dateCell = '';
+    if (r.date) {
+      // Créer une date "locale" à partir des composantes UTC pour que Excel l'affiche correctement
+      const y = r.date.getUTCFullYear();
+      const mo = r.date.getUTCMonth();
+      const d = r.date.getUTCDate();
+      // Utiliser une date locale (sans heure) pour Excel
+      dateCell = new Date(y, mo, d);
+    }
+    data.push([r.agent, dateCell, r.poste, r.debut, r.fin, r.src]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+
+  // Style colonnes
+  ws['!cols'] = [
+    { wch: 20 }, // Agent
+    { wch: 14 }, // Date
+    { wch: 20 }, // Poste
+    { wch: 12 }, // Heure début
+    { wch: 12 }, // Heure fin
+    { wch: 10 }, // Source
+  ];
+
+  // Format date Excel
+  const dateRange = XLSX.utils.decode_range(ws['!ref']);
+  for (let row = 1; row <= dateRange.e.r; row++) {
+    const cellAddr = XLSX.utils.encode_cell({ r: row, c: 1 });
+    if (ws[cellAddr] && ws[cellAddr].v instanceof Date) {
+      ws[cellAddr].t = 'd';
+      ws[cellAddr].z = 'DD/MM/YYYY';
+    }
+  }
+
+  // ── TABLEAU DYNAMIQUE (ListObject / autoFilter) ──
+  // Activer autoFilter sur la ligne d'en-tête
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({
+    s: { r: 0, c: 0 },
+    e: { r: data.length - 1, c: 5 }
+  })};
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Planning validé');
+
+  // Feuille résumé par agent
+  const agentMap = {};
+  validatedRows.forEach(r => {
+    if (!agentMap[r.agent]) agentMap[r.agent] = 0;
+    agentMap[r.agent]++;
+  });
+  const summaryData = [
+    ['Agent', 'Nb postes validés'],
+    ...Object.entries(agentMap).sort((a,b) => b[1]-a[1])
+  ];
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+  wsSummary['!cols'] = [{ wch: 22 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Résumé agents');
+
+  XLSX.writeFile(wb, `planning-valide-${new Date().toISOString().slice(0,10)}.xlsx`);
+
+  // Toast
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
